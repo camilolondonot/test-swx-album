@@ -1,6 +1,11 @@
-const Modal = () => {
+const Modal = ({ children, open, onClose }) => {
+  
   return (
-    <div>Modal</div>
+    <div className="modal">
+      <div className="modal-box">
+        {children}
+      </div>
+    </div>
   )
 }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { getData } from '@/Services/Api'
-import { CardPeople, CardFilm } from '@/components/Cards'
+import { CardPeople, CardFilm, CardStarships } from '@/components/Cards'
 
 const GetCard = () => {
   const [peopleData, setPeopleData] = useState(null)
@@ -65,6 +65,16 @@ const GetCard = () => {
       <Container >
         <h2 className='text-7xl font-bold'>Naves</h2>
       </Container>
+
+      <div className="py-6">
+        <Carousel slidesToShow={Math.min(3, starshipsData?.results?.length)}>
+          {starshipsData?.results?.map((item) => (
+            <div key={item.url ?? item.name} className="flex justify-center">
+              <CardStarships data={item} />
+            </div>
+          ))}
+        </Carousel>
+      </div>
 
 
       <Button type="link" to="/album">Album</Button>
