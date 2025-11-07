@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Button, Carousel, Loading } from '@/components/ui'
+import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { getData } from '@/Services/Api'
 import CardPeople from '@/components/Cards/CardPeople'
 
@@ -27,22 +27,20 @@ const GetCard = () => {
   return (
     <section>
       <h1 className='text-2xl font-bold'>Cartas</h1>
-      {loading && <Loading />}
-      {error && (
-        <p className="text-error">Ocurrió un problema al cargar la información.</p>
-      )}
+      
+      <Container >
+        <h2 className='text-7xl font-bold'>Personajes</h2>
+      </Container>
 
-      {!loading && !error && data?.results?.length > 0 && (
-        <div className="py-6">
-          <Carousel slidesToShow={Math.min(3, data.results.length)}>
-            {data.results.map((item) => (
-              <div key={item.url ?? item.name} className="flex justify-center">
-                <CardPeople data={item} />
-              </div>
-            ))}
-          </Carousel>
-        </div>
-      )}
+      <div className="py-6">
+        <Carousel slidesToShow={Math.min(3, data?.results?.length)}>
+        {data?.results?.map((item) => (
+          <div key={item.url ?? item.name} className="flex justify-center">
+            <CardPeople data={item} />
+          </div>
+          ))}
+        </Carousel>
+      </div>
 
       <Button type="link" to="/album">Album</Button>
       <Button type="link" to="/">Home</Button>
