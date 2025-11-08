@@ -2,19 +2,26 @@ import { useState, useMemo, useEffect, useRef } from 'react'
 import { Button, Modal } from '@/components/ui'
 import { useStoreData } from '@/store/storeData'
 import { PACK_TIERS, TIER_LABELS } from '@/constants/packs'
+import useCooldownTimer from '@/hooks/useCooldownTimer'
+import CooldownBanner from '@/components/Cooldown/CooldownBanner'
 import ModalRevealCards from './ModalRevealCards'
+
+const COOLDOWN_DURATION_MS = 60_000
 
 const GetCardOption = () => {
   const [selectedTier, setSelectedTier] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRevealOpen, setIsRevealOpen] = useState(false)
-  const [cooldownEndsAt, setCooldownEndsAt] = useState(null)
-  const [remainingSeconds, setRemainingSeconds] = useState(0)
   const shouldResetTierOnCloseRef = useRef(true)
 
   const packs = useStoreData((state) => state.packs)
   const assignCardStatus = useStoreData((state) => state.assignCardStatus)
   const albumUser = useStoreData((state) => state.albumUser)
+  const cooldownEndsAt = useStoreData((state) => state.cooldownEndsAt)
+  const startCooldown = useStoreData((state) => state.startCooldown)
+  const clearCooldown = useStoreData((state) => state.clearCooldown)
+
+  const { remainingSeconds, isActive: isCooldownActive } = useCooldownTimer(cooldownEndsAt, clearCooldown)
 
   const modalContent = useMemo(() => {
     return PACK_TIERS.reduce((acc, tier) => {
@@ -30,29 +37,24 @@ const GetCardOption = () => {
 
   const selectedContent = selectedTier ? modalContent[selectedTier] : null
 
-  const isCooldownActive = remainingSeconds > 0
-
   useEffect(() => {
-    if (!cooldownEndsAt) {
-      setRemainingSeconds(0)
-      return undefined
+    if (!isRevealOpen || !selectedTier) {
+      return
     }
 
-    const updateRemaining = () => {
-      const diff = Math.ceil((cooldownEndsAt - Date.now()) / 1000)
-      if (diff <= 0) {
-        setRemainingSeconds(0)
-        setCooldownEndsAt(null)
-      } else {
-        setRemainingSeconds(diff)
-      }
-    }
+    const cards = packs[selectedTier]?.cards ?? []
+    const albumKeys = new Set(
+      (albumUser ?? [])
+        .map((card) => card?.uniqueKey)
+        .filter(Boolean),
+    )
 
-    updateRemaining()
-    const intervalId = setInterval(updateRemaining, 1000)
-
-    return () => clearInterval(intervalId)
-  }, [cooldownEndsAt])
+    cards
+      .filter((card) => card.status === 'pending' && card.uniqueKey && albumKeys.has(card.uniqueKey))
+      .forEach((card) => {
+        assignCardStatus?.(selectedTier, card.id, 'duplicate')
+      })
+  }, [isRevealOpen, selectedTier, packs, albumUser, assignCardStatus])
 
   const handleOpenTier = (tier) => {
     if (isCooldownActive) return
@@ -75,9 +77,7 @@ const GetCardOption = () => {
     shouldResetTierOnCloseRef.current = false
     setIsModalOpen(false)
     setIsRevealOpen(true)
-    const endAt = Date.now() + 60_000
-    setCooldownEndsAt(endAt)
-    setRemainingSeconds(60)
+    startCooldown?.(COOLDOWN_DURATION_MS)
   }
 
   const handleCloseReveal = () => {
@@ -94,25 +94,6 @@ const GetCardOption = () => {
     if (!isRevealOpen || !selectedTier) return []
     return packs[selectedTier]?.cards ?? []
   }, [isRevealOpen, selectedTier, packs])
-
-  useEffect(() => {
-    if (!isRevealOpen || !selectedTier) {
-      return
-    }
-
-    const cards = packs[selectedTier]?.cards ?? []
-    const albumKeys = new Set(
-      (albumUser ?? [])
-        .map((card) => card?.uniqueKey)
-        .filter(Boolean),
-    )
-
-    cards
-      .filter((card) => card.status === 'pending' && card.uniqueKey && albumKeys.has(card.uniqueKey))
-      .forEach((card) => {
-        assignCardStatus?.(selectedTier, card.id, 'duplicate')
-      })
-  }, [isRevealOpen, selectedTier, packs, albumUser, assignCardStatus])
 
   return (
     <>
@@ -145,11 +126,11 @@ const GetCardOption = () => {
         onClose={handleCloseReveal}
       />
 
-      {isCooldownActive && (
-        <p className="text-center text-sm text-yellow-500 mt-2">
-          Podrás abrir otro sobre en {remainingSeconds}s.
-        </p>
-      )}
+      <CooldownBanner
+        remainingSeconds={remainingSeconds}
+        isActive={isCooldownActive}
+        className="mt-2"
+      />
 
       <div className="flex flex-wrap gap-4 justify-center mt-4">
         {PACK_TIERS.map((tier) => (
