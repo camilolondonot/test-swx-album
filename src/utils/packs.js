@@ -1,4 +1,5 @@
-import { getResourceId, getResourceUniqueKey } from './cards'
+import { PACK_TIERS } from '@/constants/packs'
+import { getAlbumSectionMeta, getResourceId, getResourceUniqueKey, isSpecialCard } from './cards'
 
 const TYPE_LABELS = {
   people: { single: 'personaje', plural: 'personajes' },
@@ -6,108 +7,64 @@ const TYPE_LABELS = {
   starship: { single: 'nave', plural: 'naves' },
 }
 
-const PACK_KEYS = ['basic', 'advanced', 'expert']
-const DEFAULT_PACK_COUNT = 5
-
 const createEmptyPackEntry = () => ({
   cards: [],
-  description: 'Sin cartas disponibles.',
+  description: 'Aún no has abierto este sobre.',
+  composition: null,
+  compositionLabel: null,
+  configurationId: null,
 })
 
-export const createEmptyPacks = () => PACK_KEYS.reduce((acc, key) => {
+export const createEmptyPacks = () => PACK_TIERS.reduce((acc, key) => {
   acc[key] = createEmptyPackEntry()
   return acc
 }, {})
 
-const pickRandomCards = (source, count = DEFAULT_PACK_COUNT) => {
-  if (!Array.isArray(source) || source.length === 0) {
-    return []
-  }
-
-  const pool = [...source]
-  const result = []
-
-  for (let i = 0; i < count && pool.length > 0; i += 1) {
-    const index = Math.floor(Math.random() * pool.length)
-    result.push(pool.splice(index, 1)[0])
-  }
-
-  return result
-}
-
-const buildCardId = (tier, card) => {
-  const base =
-    card?.data?.url ??
-    card?.data?.name ??
-    card?.data?.title ??
-    Math.random().toString(36).slice(2, 8)
-
-  return `${tier}-${card?.type ?? 'unknown'}-${base}-${Math.random().toString(36).slice(2, 6)}`
+const describeComposition = (composition) => {
+  if (!composition) return 'Genera láminas aleatorias.'
+  const parts = Object.entries(composition)
+    .filter(([, value]) => value > 0)
+    .map(([type, count]) => {
+      const labels = TYPE_LABELS[type] ?? { single: type, plural: `${type}s` }
+      const label = count === 1 ? labels.single : labels.plural
+      return `${count} ${label}`
+    })
+  return parts.join(', ')
 }
 
 const normalizeCardsForTier = (tier, cards) =>
   cards.map((card) => {
     const resourceId = getResourceId(card.type, card.data)
+    const sectionMeta = getAlbumSectionMeta(card.type)
     return {
-      id: buildCardId(tier, card),
+      id: `${tier}-${card.type}-${resourceId ?? Math.random().toString(36).slice(2, 8)}`,
       uniqueKey: getResourceUniqueKey(card.type, card.data),
       resourceId,
       tier,
       type: card.type,
       data: card.data,
       status: 'pending',
+      isSpecial: isSpecialCard(card.type, resourceId),
+      section: sectionMeta.title,
     }
   })
 
-const describeCards = (cards) => {
-  if (!cards.length) {
-    return 'Sin cartas disponibles.'
+const getCompositionFromCards = (cards) => cards.reduce((acc, card) => {
+  acc[card.type] = (acc[card.type] ?? 0) + 1
+  return acc
+}, {})
+
+export const createPackEntry = (tier, resources, options = {}) => {
+  const normalizedCards = normalizeCardsForTier(tier, resources)
+  const composition = options.composition ?? getCompositionFromCards(normalizedCards)
+  const compositionLabel = options.compositionLabel ?? describeComposition(composition)
+
+  return {
+    cards: normalizedCards,
+    description: compositionLabel,
+    composition,
+    compositionLabel,
+    configurationId: options.configurationId ?? null,
   }
-
-  const counts = cards.reduce((acc, card) => {
-    const key = card?.type
-    if (!key) return acc
-    acc[key] = (acc[key] ?? 0) + 1
-    return acc
-  }, {})
-
-  const parts = Object.entries(counts).map(([type, count]) => {
-    const labels = TYPE_LABELS[type] ?? { single: type, plural: `${type}s` }
-    const label = count === 1 ? labels.single : labels.plural
-    return `${count} ${label}`
-  })
-
-  return parts.join(', ')
 }
-
-export const buildPacks = (data, count = DEFAULT_PACK_COUNT) => {
-  if (!Array.isArray(data) || data.length === 0) {
-    return createEmptyPacks()
-  }
-
-  const randomizedPool = pickRandomCards(data, data.length)
-
-  const packEntries = PACK_KEYS.reduce((acc, tier) => {
-    const picked = randomizedPool.splice(0, count)
-    const needsMore = picked.length < count
-
-    const completedPick = needsMore
-      ? [
-        ...picked,
-        ...pickRandomCards(data, count - picked.length),
-      ]
-      : picked
-
-    const normalized = normalizeCardsForTier(tier, completedPick)
-    acc[tier] = {
-      cards: normalized,
-      description: describeCards(normalized),
-    }
-    return acc
-  }, {})
-
-  return packEntries
-}
-
-export default buildPacks
 

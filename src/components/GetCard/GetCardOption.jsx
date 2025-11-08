@@ -12,6 +12,7 @@ const GetCardOption = () => {
   const [selectedTier, setSelectedTier] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRevealOpen, setIsRevealOpen] = useState(false)
+  const [isOpeningPack, setIsOpeningPack] = useState(false)
   const shouldResetTierOnCloseRef = useRef(true)
 
   const packs = useStoreData((state) => state.packs)
@@ -20,6 +21,7 @@ const GetCardOption = () => {
   const cooldownEndsAt = useStoreData((state) => state.cooldownEndsAt)
   const startCooldown = useStoreData((state) => state.startCooldown)
   const clearCooldown = useStoreData((state) => state.clearCooldown)
+  const openPack = useStoreData((state) => state.openPack)
 
   const { remainingSeconds, isActive: isCooldownActive } = useCooldownTimer(cooldownEndsAt, clearCooldown)
 
@@ -27,7 +29,8 @@ const GetCardOption = () => {
     return PACK_TIERS.reduce((acc, tier) => {
       acc[tier] = {
         title: `Sobre ${TIER_LABELS[tier]}`,
-        description: packs[tier]?.description ?? '',
+        compositionLabel: packs[tier]?.compositionLabel,
+        description: packs[tier]?.compositionLabel ?? 'Genera láminas al abrir el sobre.',
         hasCards: (packs[tier]?.cards?.length ?? 0) > 0,
         totalCount: packs[tier]?.cards?.length ?? 0,
       }
@@ -58,8 +61,6 @@ const GetCardOption = () => {
 
   const handleOpenTier = (tier) => {
     if (isCooldownActive) return
-    const content = modalContent[tier]
-    if (!content?.hasCards) return
     shouldResetTierOnCloseRef.current = true
     setSelectedTier(tier)
     setIsModalOpen(true)
@@ -73,11 +74,23 @@ const GetCardOption = () => {
     shouldResetTierOnCloseRef.current = true
   }
 
-  const handleRevealPack = () => {
+  const handleRevealPack = async () => {
+    if (!selectedTier || isOpeningPack) return
+
     shouldResetTierOnCloseRef.current = false
-    setIsModalOpen(false)
-    setIsRevealOpen(true)
-    startCooldown?.(COOLDOWN_DURATION_MS)
+    setIsOpeningPack(true)
+    try {
+      await openPack?.(selectedTier)
+      setIsModalOpen(false)
+      setIsRevealOpen(true)
+      startCooldown?.(COOLDOWN_DURATION_MS)
+    } catch (error) {
+      console.error('No fue posible abrir el sobre', error)
+      setIsModalOpen(false)
+      setSelectedTier(null)
+    } finally {
+      setIsOpeningPack(false)
+    }
   }
 
   const handleCloseReveal = () => {
@@ -105,15 +118,17 @@ const GetCardOption = () => {
         footer={
           selectedContent && (
             <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={handleCloseModal}>Cancelar</Button>
-              <Button onClick={handleRevealPack}>Abrir sobre</Button>
+              <Button variant="secondary" onClick={handleCloseModal} disabled={isOpeningPack}>Cancelar</Button>
+              <Button onClick={handleRevealPack} disabled={isOpeningPack}>
+                {isOpeningPack ? 'Abriendo…' : 'Abrir sobre'}
+              </Button>
             </div>
           )
         }
       >
         {selectedContent && (
           <p className="mt-2 text-sm">
-            Este sobre contiene {selectedContent.totalCount} cartas.
+            {selectedContent.compositionLabel ?? 'Configura este sobre aleatoriamente.'}
           </p>
         )}
       </Modal>

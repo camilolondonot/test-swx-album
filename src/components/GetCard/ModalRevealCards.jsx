@@ -10,9 +10,12 @@ const TYPE_TITLES = {
 
 const getCardTitle = (card) => card?.data?.name ?? card?.data?.title ?? 'Sin nombre'
 
+const getCategoryLabel = (card) => (card?.isSpecial ? 'Especial' : 'Regular')
+
 const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
   const cardsWithFallback = useMemo(() => cards ?? [], [cards])
   const remainingCount = cardsWithFallback.filter((card) => card.status === 'pending').length
+
   const handleAdd = (card) => {
     if (!tier) return
     onAssign?.(tier, card.id, 'added')
@@ -65,16 +68,22 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
 
               return (
                 <div key={card.id} className="card bg-base-100 shadow-md border">
-                  <div className="card-body">
-                    <div className="flex items-center justify-between">
+                  <div className="card-body space-y-3">
+                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-base-content/60">
+                      <span>#{card.resourceId ?? '—'}</span>
                       <span className="badge badge-outline capitalize">
                         {TYPE_TITLES[card.type] ?? card.type}
                       </span>
-                      <span className="text-xs text-base-content/60">
-                        Sobre: {tier ? TIER_LABELS[tier] : '—'}
-                      </span>
                     </div>
                     <h3 className="card-title text-lg">{getCardTitle(card)}</h3>
+                    <div className="flex flex-col gap-1 text-sm text-base-content/70">
+                      <span>
+                        Categoría: <strong>{getCategoryLabel(card)}</strong>
+                      </span>
+                      <span>
+                        Sección: <strong>{card.section ?? '—'}</strong>
+                      </span>
+                    </div>
                     {card.type === 'people' && (
                       <p className="text-sm text-base-content/70">
                         Género: {card.data?.gender ?? 'Desconocido'}

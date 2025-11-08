@@ -58,4 +58,16 @@ export const getAllData = async (endpoint) => {
   }
 }
 
+export const getResourceByUrl = async (url) => {
+  if (!url) return null
+  const isAbsolute = /^https?:\/\//i.test(url)
+  if (isAbsolute) {
+    const response = await axios.get(url)
+    return response.data
+  }
+  const normalized = url.startsWith('/') ? url.slice(1) : url
+  const response = await api.get(normalized)
+  return response.data
+}
+
 export default api
