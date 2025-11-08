@@ -10,17 +10,39 @@ const GetCard = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  
+  const [completedData, setCompletedData] = useState([])
+
   const handleGetData = async () => {
     setLoading(true)
     try {
-      const peopleResponse = await getData('people')
-      const filmsResponse = await getData('films')
-      const starshipsResponse = await getData('starships')
+      const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
+        getData('people'),
+        getData('films'),
+        getData('starships'),
+      ])
       setPeopleData(peopleResponse)
       setFilmsData(filmsResponse)
       setStarshipsData(starshipsResponse)
+
+      setCompletedData([
+        ...(peopleResponse?.results?.map((item) => ({
+          type: 'people',
+          data: item,
+        })) ?? []),
+        ...(filmsResponse?.results?.map((item) => ({
+          type: 'film',
+          data: item,
+        })) ?? []),
+        ...(starshipsResponse?.results?.map((item) => ({
+          type: 'starship',
+          data: item,
+        })) ?? []),
+      ])
+
     } catch (error) {
       setError(error)
+      setCompletedData([])
     } finally {
       setLoading(false);
     }
@@ -30,10 +52,24 @@ const GetCard = () => {
     handleGetData()
   }, [])
 
+  useEffect(() => {
+    console.log('completedData', completedData)
+  }, [completedData])
+
   return (
     <section>
       <h1 className='text-2xl font-bold'>Cartas</h1>
       
+      {loading && <Loading />}
+      {error && (
+        <p className="text-error">Ocurrió un problema al cargar la información.</p>
+      )}
+      {!loading && !error && (
+        <p className="text-sm text-base-content/70">
+          Total de cartas disponibles: {completedData.length}
+        </p>
+      )}
+
       <Container >
         <h2 className='text-7xl font-bold'>Personajes</h2>
       </Container>
