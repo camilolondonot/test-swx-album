@@ -6,6 +6,10 @@ import { CardPeople, CardFilm, CardStarships } from '@/components/Cards'
 
 import GetCardOption from '@/components/GetCard/GetCardOption'
 
+const mapEntriesByType = (entries, type) => entries
+  .filter((item) => item.type === type)
+  .map((item) => item.data)
+
 const GetCard = () => {
   const [peopleData, setPeopleData] = useState(null)
   const [filmsData, setFilmsData] = useState(null)
@@ -58,6 +62,24 @@ const GetCard = () => {
     fetchCatalog()
   }, [catalogLoaded, fetchCatalog])
 
+  useEffect(() => {
+    if (!catalogLoaded || !Array.isArray(completedData) || completedData.length === 0) {
+      return
+    }
+
+    setPeopleData((prev) => prev ?? { results: [] })
+    setFilmsData((prev) => prev ?? { results: [] })
+    setStarshipsData((prev) => prev ?? { results: [] })
+
+    const people = mapEntriesByType(completedData, 'people')
+    const films = mapEntriesByType(completedData, 'film')
+    const starships = mapEntriesByType(completedData, 'starship')
+
+    setPeopleData({ results: people })
+    setFilmsData({ results: films })
+    setStarshipsData({ results: starships })
+  }, [catalogLoaded, completedData])
+
   const hasCatalog = catalogLoaded && Array.isArray(completedData) && completedData.length > 0
 
   const sections = useMemo(() => ([
@@ -82,10 +104,10 @@ const GetCard = () => {
   ]), [peopleData, filmsData, starshipsData])
 
   return (
-    <section className="space-y-8">
-      <header className="space-y-3">
-        <h1 className="text-3xl font-bold">Obtener láminas</h1>
-        <p className="text-base text-base-content/70">
+    <section className="space-y-10">
+      <header className="space-y-3 text-center sm:text-left">
+        <h1 className="text-3xl font-bold sm:text-4xl">Obtener láminas</h1>
+        <p className="text-base text-base-content/70 sm:max-w-2xl">
           Abre sobres para descubrir láminas nuevas, agrégalas a tu álbum o descarta las que estén repetidas.
         </p>
       </header>
@@ -96,15 +118,15 @@ const GetCard = () => {
 
       <Container>
         {loading && (
-          <div className="py-6">
+          <div className="py-10">
             <Loading />
           </div>
         )}
 
         {error && (
-          <div className="rounded-md border border-error/30 bg-error/10 px-4 py-3 text-sm text-error-content">
+          <div className="rounded-md border border-error/30 bg-error/10 px-4 py-4 text-sm text-error-content">
             <p>Ocurrió un problema al cargar el catálogo de láminas.</p>
-            <Button className="mt-3" variant="secondary" onClick={fetchCatalog}>
+            <Button className="mt-3 w-full sm:w-auto" variant="secondary" onClick={fetchCatalog}>
               Reintentar
             </Button>
           </div>
@@ -122,20 +144,23 @@ const GetCard = () => {
           return null
         }
 
-        const slidesToShow = Math.min(3, section.data.length)
+        const slidesToShow = Math.min(2, section.data.length)
 
         return (
           <div key={section.title} className="space-y-4">
             <Container>
-              <h2 className="text-2xl font-semibold">{section.title}</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-semibold">{section.title}</h2>
+                <span className="hidden text-sm text-base-content/60 sm:inline">{section.data.length} láminas</span>
+              </div>
             </Container>
-            <div className="py-6">
-              <Carousel slidesToShow={slidesToShow}>
+            <div className="py-4 sm:py-6">
+              <Carousel slidesToShow={slidesToShow} responsiveBreakpoints={{ 640: 1, 1024: 2 }}>
                 {section.data.map((item) => {
                   const key = section.keyAccessor(item)
                   const CardComponent = section.CardComponent
                   return (
-                    <div key={key} className="flex justify-center">
+                    <div key={key} className="flex justify-center px-2">
                       <CardComponent data={item} />
                     </div>
                   )
