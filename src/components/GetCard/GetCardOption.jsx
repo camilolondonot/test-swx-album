@@ -1,58 +1,81 @@
 import { useMemo, useState } from 'react'
 import { Button, Modal } from '@/components/ui'
+import { useStoreData } from '@/store/storeData'
 
 const GetCardOption = () => {
   const [activeTier, setActiveTier] = useState(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const packs = useStoreData((state) => state.packs)
 
   const modalContent = useMemo(() => ({
     basic: {
       title: 'Sobre básico',
-      description: 'Un paquete introductorio con personajes icónicos.',
-      actions: [
-        { label: 'Abrir sobre básico', onClick: () => setActiveTier(null) },
-      ],
+      description: packs.basic.description,
+      hasCards: packs.basic.cards.length > 0,
     },
     advanced: {
       title: 'Sobre avanzado',
-      description: 'Incluye personajes, naves y escenas memorables.',
-      actions: [
-        { label: 'Abrir sobre avanzado', onClick: () => setActiveTier(null) },
-      ],
+      description: packs.advanced.description,
+      hasCards: packs.advanced.cards.length > 0,
     },
     expert: {
       title: 'Sobre experto',
-      description: 'Colección especial con cartas raras y limitadas.',
-      actions: [
-        { label: 'Abrir sobre experto', onClick: () => setActiveTier(null) },
-      ],
+      description: packs.expert.description,
+      hasCards: packs.expert.cards.length > 0,
     },
-  }), [])
+  }), [packs])
+
+  const activeContent = activeTier ? modalContent[activeTier] : null
+
+  const handleOpenTier = (tier) => {
+    if (!modalContent[tier]?.hasCards) return
+    setActiveTier(tier)
+    setIsModalOpen(true)
+  }
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false)
+  }
 
   return (
     <>
       <Modal
-        open={Boolean(activeTier)}
-        onClose={() => setActiveTier(null)}
-        title={activeTier ? modalContent[activeTier].title : undefined}
-        description={activeTier ? modalContent[activeTier].description : undefined}
-        footer={activeTier ? (
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        closeOnBackdrop={false}
+        title={activeContent?.title}
+        description={activeContent?.description}
+        footer={activeContent ? (
           <div className="flex flex-col gap-2 w-full">
-            {modalContent[activeTier].actions.map((action) => (
-              <Button
-                key={action.label}
-                type="button"
-                onClick={action.onClick}
-              >
-                {action.label}
-              </Button>
-            ))}
+            <Button type="button" onClick={handleCloseModal}>
+              Cerrar
+            </Button>
           </div>
         ) : null}
       />
-      <div className="flex flex-col gap-4">
-        <Button type="button" onClick={() => setActiveTier('basic')}>Sobre básico</Button>
-        <Button type="button" onClick={() => setActiveTier('advanced')}>Sobre avanzado</Button>
-        <Button type="button" onClick={() => setActiveTier('expert')}>Sobre expertos</Button>
+      <div className="flex gap-4 justify-center">
+        <Button
+          type="button"
+          onClick={() => handleOpenTier('basic')}
+          disabled={!modalContent.basic.hasCards}
+        >
+          Sobre básico
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleOpenTier('advanced')}
+          disabled={!modalContent.advanced.hasCards}
+        >
+          Sobre avanzado
+        </Button>
+        <Button
+          type="button"
+          onClick={() => handleOpenTier('expert')}
+          disabled={!modalContent.expert.hasCards}
+        >
+          Sobre expertos
+        </Button>
       </div>
     </>
   )

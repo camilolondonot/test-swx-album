@@ -28,7 +28,7 @@ const Button = ({ children, onClick, className = '', type = 'button', size = 'me
 
   if (type === 'submit') {
     return (
-      <button className={buttonClasses} type="submit" {...props}>
+      <button className={buttonClasses} type="submit" onClick={onClick} {...props}>
         {children}
       </button>
     )
@@ -36,7 +36,7 @@ const Button = ({ children, onClick, className = '', type = 'button', size = 'me
 
   if (type === 'button') {
     return (
-      <button className={buttonClasses} type="button" {...props}>
+      <button className={buttonClasses} type="button" onClick={onClick} {...props}>
         {children}
       </button>
     )

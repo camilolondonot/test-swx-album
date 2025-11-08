@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { useStoreData } from '@/store/storeData'
 import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { getData } from '@/Services/Api'
 import { CardPeople, CardFilm, CardStarships } from '@/components/Cards'
+import GetCardOption from '@/components/GetCard/GetCardOption'
 
 const GetCard = () => {
   const [peopleData, setPeopleData] = useState(null)
@@ -10,46 +12,56 @@ const GetCard = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  
-  const [completedData, setCompletedData] = useState([])
-
-  const handleGetData = async () => {
-    setLoading(true)
-    try {
-      const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
-        getData('people'),
-        getData('films'),
-        getData('starships'),
-      ])
-      setPeopleData(peopleResponse)
-      setFilmsData(filmsResponse)
-      setStarshipsData(starshipsResponse)
-
-      setCompletedData([
-        ...(peopleResponse?.results?.map((item) => ({
-          type: 'people',
-          data: item,
-        })) ?? []),
-        ...(filmsResponse?.results?.map((item) => ({
-          type: 'film',
-          data: item,
-        })) ?? []),
-        ...(starshipsResponse?.results?.map((item) => ({
-          type: 'starship',
-          data: item,
-        })) ?? []),
-      ])
-
-    } catch (error) {
-      setError(error)
-      setCompletedData([])
-    } finally {
-      setLoading(false);
-    }
-  };
+  const completedData = useStoreData((state) => state.completedData)
 
   useEffect(() => {
-    handleGetData()
+    let cancelled = false
+
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
+          getData('people'),
+          getData('films'),
+          getData('starships'),
+        ])
+
+        if (cancelled) return
+
+        setPeopleData(peopleResponse)
+        setFilmsData(filmsResponse)
+        setStarshipsData(starshipsResponse)
+
+        useStoreData.getState().setCompletedData([
+          ...(peopleResponse?.results?.map((item) => ({
+            type: 'people',
+            data: item,
+          })) ?? []),
+          ...(filmsResponse?.results?.map((item) => ({
+            type: 'film',
+            data: item,
+          })) ?? []),
+          ...(starshipsResponse?.results?.map((item) => ({
+            type: 'starship',
+            data: item,
+          })) ?? []),
+        ])
+      } catch (err) {
+        if (cancelled) return
+        setError(err)
+        useStoreData.getState().setCompletedData([])
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchData()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -59,6 +71,9 @@ const GetCard = () => {
   return (
     <section>
       <h1 className='text-2xl font-bold'>Cartas</h1>
+      <Container>
+        <GetCardOption />
+      </Container>
       
       {loading && <Loading />}
       {error && (
