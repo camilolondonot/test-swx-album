@@ -14,10 +14,10 @@ const getCategoryLabel = (card) => (card?.isSpecial ? 'Especial' : 'Regular')
 
 const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
   const cardsWithFallback = useMemo(() => cards ?? [], [cards])
-  const remainingCount = cardsWithFallback.filter((card) => card.status === 'pending').length
+  const pendingCount = cardsWithFallback.filter((card) => ['pending', 'duplicate'].includes(card.status)).length
 
   const handleAdd = (card) => {
-    if (!tier) return
+    if (!tier || card?.status === 'duplicate') return
     onAssign?.(tier, card.id, 'added')
   }
 
@@ -27,7 +27,7 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
   }
 
   const handleClose = () => {
-    if (remainingCount > 0) return
+    if (pendingCount > 0) return
     onClose?.()
   }
 
@@ -36,12 +36,12 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
       open={open}
       onClose={handleClose}
       closeOnBackdrop={false}
-      showCloseButton={remainingCount === 0}
+      showCloseButton={pendingCount === 0}
       title={`Contenido del sobre ${tier ? TIER_LABELS[tier] : ''}`.trim()}
       contentClassName="max-w-4xl"
       footer={(
         <div className="w-full flex justify-end">
-          <Button type="button" variant="secondary" onClick={handleClose} disabled={remainingCount > 0}>
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={pendingCount > 0}>
             Cerrar
           </Button>
         </div>
@@ -54,14 +54,18 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-base-content/70">
-            Cartas pendientes de asignar: {remainingCount} de {cardsWithFallback.length}
+            Cartas pendientes de asignar: {pendingCount} de {cardsWithFallback.length}
           </p>
           <div className="grid gap-6 md:grid-cols-3">
             {cardsWithFallback.map((card) => {
               const isPending = card.status === 'pending'
+              const isDuplicate = card.status === 'duplicate'
+              const canAdd = isPending && !isDuplicate
+              const canDiscard = isPending || isDuplicate
+
               const statusLabel = (() => {
                 if (card.status === 'added') return 'Agregada al álbum'
-                if (card.status === 'duplicate') return 'Duplicada (descartada automáticamente)'
+                if (card.status === 'duplicate') return 'Repetida: descarta para continuar'
                 if (card.status === 'discarded') return 'Descartada'
                 return null
               })()
@@ -75,7 +79,7 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
                         {TYPE_TITLES[card.type] ?? card.type}
                       </span>
                     </div>
-                    <h3 className="card-title text-lg">{getCardTitle(card)}</h3>
+                    <h3 className="card-title text-lg leading-tight">{getCardTitle(card)}</h3>
                     <div className="flex flex-col gap-1 text-sm text-base-content/70">
                       <span>
                         Categoría: <strong>{getCategoryLabel(card)}</strong>
@@ -106,7 +110,9 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
                             ? 'badge-success'
                             : card.status === 'duplicate'
                               ? 'badge-warning'
-                              : 'badge-ghost'
+                              : card.status === 'discarded'
+                                ? 'badge-ghost'
+                                : 'badge-outline'
                         }`}
                       >
                         {statusLabel}
@@ -117,11 +123,11 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
                         type="button"
                         variant="secondary"
                         onClick={() => handleDiscard(card)}
-                        disabled={!isPending}
+                        disabled={!canDiscard}
                       >
                         Descartar
                       </Button>
-                      <Button type="button" onClick={() => handleAdd(card)} disabled={!isPending}>
+                      <Button type="button" onClick={() => handleAdd(card)} disabled={!canAdd}>
                         Agregar al álbum
                       </Button>
                     </div>

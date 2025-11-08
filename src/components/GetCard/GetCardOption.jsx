@@ -3,7 +3,6 @@ import { Button, Modal } from '@/components/ui'
 import { useStoreData } from '@/store/storeData'
 import { PACK_TIERS, TIER_LABELS } from '@/constants/packs'
 import useCooldownTimer from '@/hooks/useCooldownTimer'
-import CooldownBanner from '@/components/Cooldown/CooldownBanner'
 import ModalRevealCards from './ModalRevealCards'
 
 const COOLDOWN_DURATION_MS = 60_000
@@ -23,7 +22,7 @@ const GetCardOption = () => {
   const clearCooldown = useStoreData((state) => state.clearCooldown)
   const openPack = useStoreData((state) => state.openPack)
 
-  const { remainingSeconds, isActive: isCooldownActive } = useCooldownTimer(cooldownEndsAt, clearCooldown)
+  const { isActive: isCooldownActive } = useCooldownTimer(cooldownEndsAt, clearCooldown)
 
   const modalContent = useMemo(() => {
     return PACK_TIERS.reduce((acc, tier) => {
@@ -139,12 +138,6 @@ const GetCardOption = () => {
         cards={revealCards}
         onAssign={handleAssignCard}
         onClose={handleCloseReveal}
-      />
-
-      <CooldownBanner
-        remainingSeconds={remainingSeconds}
-        isActive={isCooldownActive}
-        className="mt-2"
       />
 
       <div className="flex flex-wrap gap-4 justify-center mt-4">
