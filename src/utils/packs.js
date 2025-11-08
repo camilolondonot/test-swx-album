@@ -4,18 +4,20 @@ const TYPE_LABELS = {
   starship: { single: 'nave', plural: 'naves' },
 }
 
+const PACK_KEYS = ['basic', 'advanced', 'expert']
+const DEFAULT_PACK_COUNT = 5
+
 const createEmptyPackEntry = () => ({
   cards: [],
   description: 'Sin cartas disponibles.',
 })
 
-export const createEmptyPacks = () => ({
-  basic: createEmptyPackEntry(),
-  advanced: createEmptyPackEntry(),
-  expert: createEmptyPackEntry(),
-})
+export const createEmptyPacks = () => PACK_KEYS.reduce((acc, key) => {
+  acc[key] = createEmptyPackEntry()
+  return acc
+}, {})
 
-const pickRandomCards = (source, count = 3) => {
+const pickRandomCards = (source, count = DEFAULT_PACK_COUNT) => {
   if (!Array.isArray(source) || source.length === 0) {
     return []
   }
@@ -30,6 +32,25 @@ const pickRandomCards = (source, count = 3) => {
 
   return result
 }
+
+const buildCardId = (tier, card) => {
+  const base =
+    card?.data?.url ??
+    card?.data?.name ??
+    card?.data?.title ??
+    Math.random().toString(36).slice(2, 8)
+
+  return `${tier}-${card?.type ?? 'unknown'}-${base}-${Math.random().toString(36).slice(2, 6)}`
+}
+
+const normalizeCardsForTier = (tier, cards) =>
+  cards.map((card) => ({
+    id: buildCardId(tier, card),
+    tier,
+    type: card.type,
+    data: card.data,
+    status: 'pending',
+  }))
 
 const describeCards = (cards) => {
   if (!cards.length) {
@@ -52,26 +73,33 @@ const describeCards = (cards) => {
   return parts.join(', ')
 }
 
-export const buildPacks = (data, count = 3) => {
+export const buildPacks = (data, count = DEFAULT_PACK_COUNT) => {
   if (!Array.isArray(data) || data.length === 0) {
     return createEmptyPacks()
   }
 
-  const packEntries = {
-    basic: pickRandomCards(data, count),
-    advanced: pickRandomCards(data, count),
-    expert: pickRandomCards(data, count),
-  }
+  const randomizedPool = pickRandomCards(data, data.length)
 
-  return Object.fromEntries(
-    Object.entries(packEntries).map(([key, cards]) => [
-      key,
-      {
-        cards,
-        description: describeCards(cards),
-      },
-    ]),
-  )
+  const packEntries = PACK_KEYS.reduce((acc, tier) => {
+    const picked = randomizedPool.splice(0, count)
+    const needsMore = picked.length < count
+
+    const completedPick = needsMore
+      ? [
+        ...picked,
+        ...pickRandomCards(data, count - picked.length),
+      ]
+      : picked
+
+    const normalized = normalizeCardsForTier(tier, completedPick)
+    acc[tier] = {
+      cards: normalized,
+      description: describeCards(normalized),
+    }
+    return acc
+  }, {})
+
+  return packEntries
 }
 
 export default buildPacks

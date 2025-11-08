@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Modal, Button } from '@/components/ui'
-import { useStoreData } from '@/store/storeData'
+import { TIER_LABELS } from '@/constants/packs'
 
 const TYPE_TITLES = {
   people: 'Personaje',
@@ -10,32 +10,23 @@ const TYPE_TITLES = {
 
 const getCardTitle = (card) => card?.data?.name ?? card?.data?.title ?? 'Sin nombre'
 
-const ModalRevealCards = ({ open, cards, tierLabel, onClose }) => {
-  const addCardToAlbum = useStoreData((state) => state.addCardToAlbum)
-  const [visibleCards, setVisibleCards] = useState([])
+const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
+  const cardsWithFallback = useMemo(() => cards ?? [], [cards])
+  const remainingCount = cardsWithFallback.filter((card) => card.status === 'pending').length
 
-  useEffect(() => {
-    if (open) {
-      setVisibleCards(cards ?? [])
-    }
-  }, [open, cards])
-
-  const remainingCount = useMemo(() => visibleCards.length, [visibleCards])
-
+  console.log('cardsWithFallback', cardsWithFallback)
   const handleAdd = (card) => {
-    addCardToAlbum({
-      ...card,
-      acquiredAt: new Date().toISOString(),
-    })
-    setVisibleCards((prev) => prev.filter((item) => item !== card))
+    if (!tier) return
+    onAssign?.(tier, card.id, 'added')
   }
 
   const handleDiscard = (card) => {
-    setVisibleCards((prev) => prev.filter((item) => item !== card))
+    if (!tier) return
+    onAssign?.(tier, card.id, 'discarded')
   }
 
   const handleClose = () => {
-    setVisibleCards([])
+    if (remainingCount > 0) return
     onClose?.()
   }
 
@@ -43,60 +34,86 @@ const ModalRevealCards = ({ open, cards, tierLabel, onClose }) => {
     <Modal
       open={open}
       onClose={handleClose}
-      title={`Contenido del sobre ${tierLabel ?? ''}`.trim()}
       closeOnBackdrop={false}
+      showCloseButton={remainingCount === 0}
+      title={`Contenido del sobre ${tier ? TIER_LABELS[tier] : ''}`.trim()}
       contentClassName="max-w-4xl"
       footer={(
         <div className="w-full flex justify-end">
-          <Button type="button" variant="secondary" onClick={handleClose}>
+          <Button type="button" variant="secondary" onClick={handleClose} disabled={remainingCount > 0}>
             Cerrar
           </Button>
         </div>
       )}
     >
-      {remainingCount === 0 ? (
+      {cardsWithFallback.length === 0 ? (
         <div className="text-center py-6">
-          <p className="text-lg font-semibold">¡Sobre completado!</p>
-          <p className="text-sm text-base-content/70">
-            Ya gestionaste todas las cartas de este sobre.
-          </p>
+          <p className="text-lg font-semibold">No hay cartas disponibles en este sobre.</p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-3">
-          {visibleCards.map((card) => (
-            <div key={`${card.type}-${getCardTitle(card)}`} className="card bg-base-100 shadow-md border">
-              <div className="card-body">
-                <div className="flex items-center justify-between">
-                  <span className="badge badge-outline capitalize">{TYPE_TITLES[card.type] ?? card.type}</span>
-                  <span className="text-xs text-base-content/60">Sobre: {tierLabel}</span>
+        <div className="space-y-4">
+          <p className="text-sm text-base-content/70">
+            Cartas pendientes de asignar: {remainingCount} de {cardsWithFallback.length}
+          </p>
+          <div className="grid gap-6 md:grid-cols-3">
+            {cardsWithFallback.map((card) => {
+              const isPending = card.status === 'pending'
+              const statusLabel = card.status === 'added'
+                ? 'Agregada al álbum'
+                : card.status === 'discarded'
+                  ? 'Descartada'
+                  : null
+
+              return (
+                <div key={card.id} className="card bg-base-100 shadow-md border">
+                  <div className="card-body">
+                    <div className="flex items-center justify-between">
+                      <span className="badge badge-outline capitalize">
+                        {TYPE_TITLES[card.type] ?? card.type}
+                      </span>
+                      <span className="text-xs text-base-content/60">
+                        Sobre: {tier ? TIER_LABELS[tier] : '—'}
+                      </span>
+                    </div>
+                    <h3 className="card-title text-lg">{getCardTitle(card)}</h3>
+                    {card.type === 'people' && (
+                      <p className="text-sm text-base-content/70">
+                        Género: {card.data?.gender ?? 'Desconocido'}
+                      </p>
+                    )}
+                    {card.type === 'film' && (
+                      <p className="text-sm text-base-content/70">
+                        Director: {card.data?.director ?? 'Desconocido'}
+                      </p>
+                    )}
+                    {card.type === 'starship' && (
+                      <p className="text-sm text-base-content/70">
+                        Clase: {card.data?.starship_class ?? 'Desconocido'}
+                      </p>
+                    )}
+                    {statusLabel && (
+                      <span className={`badge mt-2 ${card.status === 'added' ? 'badge-success' : 'badge-ghost'}`}>
+                        {statusLabel}
+                      </span>
+                    )}
+                    <div className="card-actions justify-end mt-4 gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => handleDiscard(card)}
+                        disabled={!isPending}
+                      >
+                        Descartar
+                      </Button>
+                      <Button type="button" onClick={() => handleAdd(card)} disabled={!isPending}>
+                        Agregar al álbum
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="card-title text-lg">{getCardTitle(card)}</h3>
-                {card.type === 'people' && (
-                  <p className="text-sm text-base-content/70">
-                    Género: {card.data?.gender ?? 'Desconocido'}
-                  </p>
-                )}
-                {card.type === 'film' && (
-                  <p className="text-sm text-base-content/70">
-                    Director: {card.data?.director ?? 'Desconocido'}
-                  </p>
-                )}
-                {card.type === 'starship' && (
-                  <p className="text-sm text-base-content/70">
-                    Clase: {card.data?.starship_class ?? 'Desconocido'}
-                  </p>
-                )}
-                <div className="card-actions justify-end mt-4 gap-2">
-                  <Button type="button" variant="secondary" onClick={() => handleDiscard(card)}>
-                    Descartar
-                  </Button>
-                  <Button type="button" onClick={() => handleAdd(card)}>
-                    Agregar al álbum
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+              )
+            })}
+          </div>
         </div>
       )}
     </Modal>

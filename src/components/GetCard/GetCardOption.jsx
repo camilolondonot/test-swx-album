@@ -1,108 +1,148 @@
-import { useMemo, useState } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Button, Modal } from '@/components/ui'
 import { useStoreData } from '@/store/storeData'
+import { PACK_TIERS, TIER_LABELS } from '@/constants/packs'
 import ModalRevealCards from './ModalRevealCards'
 
-const TIER_LABELS = {
-  basic: 'básico',
-  advanced: 'avanzado',
-  expert: 'experto',
-}
-
 const GetCardOption = () => {
-  const [activeTier, setActiveTier] = useState(null)
+  const [selectedTier, setSelectedTier] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isRevealOpen, setIsRevealOpen] = useState(false)
+  const [cooldownEndsAt, setCooldownEndsAt] = useState(null)
+  const [remainingSeconds, setRemainingSeconds] = useState(0)
+  const shouldResetTierOnCloseRef = useRef(true)
 
   const packs = useStoreData((state) => state.packs)
+  const assignCardStatus = useStoreData((state) => state.assignCardStatus)
 
-  const modalContent = useMemo(() => ({
-    basic: {
-      title: 'Sobre básico',
-      description: packs.basic.description,
-      hasCards: packs.basic.cards.length > 0,
-    },
-    advanced: {
-      title: 'Sobre avanzado',
-      description: packs.advanced.description,
-      hasCards: packs.advanced.cards.length > 0,
-    },
-    expert: {
-      title: 'Sobre experto',
-      description: packs.expert.description,
-      hasCards: packs.expert.cards.length > 0,
-    },
-  }), [packs])
+  console.log('packs', packs)
 
-  const activeContent = activeTier ? modalContent[activeTier] : null
+  const modalContent = useMemo(() => {
+    return PACK_TIERS.reduce((acc, tier) => {
+      acc[tier] = {
+        title: `Sobre ${TIER_LABELS[tier]}`,
+        description: packs[tier]?.description ?? '',
+        hasCards: (packs[tier]?.cards?.length ?? 0) > 0,
+        totalCount: packs[tier]?.cards?.length ?? 0,
+      }
+      return acc
+    }, {})
+  }, [packs])
+
+  const selectedContent = selectedTier ? modalContent[selectedTier] : null
+
+  const isCooldownActive = remainingSeconds > 0
+
+  useEffect(() => {
+    if (!cooldownEndsAt) {
+      setRemainingSeconds(0)
+      return undefined
+    }
+
+    const updateRemaining = () => {
+      const diff = Math.ceil((cooldownEndsAt - Date.now()) / 1000)
+      if (diff <= 0) {
+        setRemainingSeconds(0)
+        setCooldownEndsAt(null)
+      } else {
+        setRemainingSeconds(diff)
+      }
+    }
+
+    updateRemaining()
+    const intervalId = setInterval(updateRemaining, 1000)
+
+    return () => clearInterval(intervalId)
+  }, [cooldownEndsAt])
 
   const handleOpenTier = (tier) => {
-    if (!modalContent[tier]?.hasCards) return
-    setActiveTier(tier)
+    if (isCooldownActive) return
+    const content = modalContent[tier]
+    if (!content?.hasCards) return
+    shouldResetTierOnCloseRef.current = true
+    setSelectedTier(tier)
     setIsModalOpen(true)
   }
 
   const handleCloseModal = () => {
     setIsModalOpen(false)
+    if (shouldResetTierOnCloseRef.current) {
+      setSelectedTier(null)
+    }
+    shouldResetTierOnCloseRef.current = true
   }
 
   const handleRevealPack = () => {
-    if (!activeTier) return
+    shouldResetTierOnCloseRef.current = false
     setIsModalOpen(false)
     setIsRevealOpen(true)
+    const endAt = Date.now() + 60_000
+    setCooldownEndsAt(endAt)
+    setRemainingSeconds(60)
   }
 
   const handleCloseReveal = () => {
     setIsRevealOpen(false)
+    setSelectedTier(null)
+    shouldResetTierOnCloseRef.current = true
   }
+
+  const handleAssignCard = (tier, cardId, status) => {
+    assignCardStatus?.(tier, cardId, status)
+  }
+
+  const revealCards = useMemo(() => {
+    if (!isRevealOpen || !selectedTier) return []
+    return packs[selectedTier]?.cards ?? []
+  }, [isRevealOpen, selectedTier, packs])
 
   return (
     <>
       <Modal
         open={isModalOpen}
         onClose={handleCloseModal}
-        closeOnBackdrop={false}
-        title={activeContent?.title}
-        description={activeContent?.description}
-        footer={activeContent ? (
-          <div className="flex w-full justify-between gap-2 flex-col sm:flex-row">
-            <Button type="button" variant="secondary" onClick={handleCloseModal}>
-              Cancelar
-            </Button>
-            <Button type="button" onClick={handleRevealPack}>
-              Abrir sobre
-            </Button>
-          </div>
-        ) : null}
-      />
+        title={selectedContent?.title}
+        description={selectedContent?.description}
+        footer={
+          selectedContent && (
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={handleCloseModal}>Cancelar</Button>
+              <Button onClick={handleRevealPack}>Abrir sobre</Button>
+            </div>
+          )
+        }
+      >
+        {selectedContent && (
+          <p className="mt-2 text-sm">
+            Este sobre contiene {selectedContent.totalCount} cartas.
+          </p>
+        )}
+      </Modal>
+
       <ModalRevealCards
         open={isRevealOpen}
-        cards={activeTier ? packs[activeTier].cards : []}
-        tierLabel={activeTier ? TIER_LABELS[activeTier] : undefined}
+        tier={selectedTier}
+        cards={revealCards}
+        onAssign={handleAssignCard}
         onClose={handleCloseReveal}
       />
-      <div className="flex gap-4 justify-center">
-        <Button
-          type="button"
-          onClick={() => handleOpenTier('basic')}
-          disabled={!modalContent.basic.hasCards}
-        >
-          Sobre básico
-        </Button>
-        <Button
-          type="button"
-          onClick={() => handleOpenTier('advanced')}
-          disabled={!modalContent.advanced.hasCards}
-        >
-          Sobre avanzado
-        </Button>
-        <Button
-          type="button"
-          onClick={() => handleOpenTier('expert')}
-          disabled={!modalContent.expert.hasCards}
-        >
-          Sobre expertos
-        </Button>
+
+      {isCooldownActive && (
+        <p className="text-center text-sm text-yellow-500 mt-2">
+          Podrás abrir otro sobre en {remainingSeconds}s.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-4 justify-center mt-4">
+        {PACK_TIERS.map((tier) => (
+          <Button
+            key={tier}
+            onClick={() => handleOpenTier(tier)}
+            disabled={isCooldownActive}
+          >
+            Sobre {TIER_LABELS[tier]}
+          </Button>
+        ))}
       </div>
     </>
   )
