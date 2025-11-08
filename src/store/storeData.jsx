@@ -19,6 +19,10 @@ export const useStoreData = create((set) => ({
     packs: buildPacks(state.completedData),
   })),
 
+  addCardToAlbum: (card) => set((state) => ({
+    albumUser: [...state.albumUser, card],
+  })),
+
   setAlbumUser: (albumUser) => set({ albumUser }),
 
   resetStore: () => set(createInitialState()),

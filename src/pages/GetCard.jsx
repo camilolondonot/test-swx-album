@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useStoreData } from '@/store/storeData'
-import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { getData } from '@/Services/Api'
+import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { CardPeople, CardFilm, CardStarships } from '@/components/Cards'
+
 import GetCardOption from '@/components/GetCard/GetCardOption'
 
 const GetCard = () => {

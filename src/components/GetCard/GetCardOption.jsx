@@ -1,10 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Button, Modal } from '@/components/ui'
 import { useStoreData } from '@/store/storeData'
+import ModalRevealCards from './ModalRevealCards'
+
+const TIER_LABELS = {
+  basic: 'básico',
+  advanced: 'avanzado',
+  expert: 'experto',
+}
 
 const GetCardOption = () => {
   const [activeTier, setActiveTier] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isRevealOpen, setIsRevealOpen] = useState(false)
 
   const packs = useStoreData((state) => state.packs)
 
@@ -38,6 +46,16 @@ const GetCardOption = () => {
     setIsModalOpen(false)
   }
 
+  const handleRevealPack = () => {
+    if (!activeTier) return
+    setIsModalOpen(false)
+    setIsRevealOpen(true)
+  }
+
+  const handleCloseReveal = () => {
+    setIsRevealOpen(false)
+  }
+
   return (
     <>
       <Modal
@@ -47,12 +65,21 @@ const GetCardOption = () => {
         title={activeContent?.title}
         description={activeContent?.description}
         footer={activeContent ? (
-          <div className="flex flex-col gap-2 w-full">
-            <Button type="button" onClick={handleCloseModal}>
-              Cerrar
+          <div className="flex w-full justify-between gap-2 flex-col sm:flex-row">
+            <Button type="button" variant="secondary" onClick={handleCloseModal}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleRevealPack}>
+              Abrir sobre
             </Button>
           </div>
         ) : null}
+      />
+      <ModalRevealCards
+        open={isRevealOpen}
+        cards={activeTier ? packs[activeTier].cards : []}
+        tierLabel={activeTier ? TIER_LABELS[activeTier] : undefined}
+        onClose={handleCloseReveal}
       />
       <div className="flex gap-4 justify-center">
         <Button
