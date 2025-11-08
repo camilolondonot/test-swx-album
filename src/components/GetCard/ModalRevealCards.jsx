@@ -13,8 +13,6 @@ const getCardTitle = (card) => card?.data?.name ?? card?.data?.title ?? 'Sin nom
 const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
   const cardsWithFallback = useMemo(() => cards ?? [], [cards])
   const remainingCount = cardsWithFallback.filter((card) => card.status === 'pending').length
-
-  console.log('cardsWithFallback', cardsWithFallback)
   const handleAdd = (card) => {
     if (!tier) return
     onAssign?.(tier, card.id, 'added')
@@ -58,11 +56,12 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
           <div className="grid gap-6 md:grid-cols-3">
             {cardsWithFallback.map((card) => {
               const isPending = card.status === 'pending'
-              const statusLabel = card.status === 'added'
-                ? 'Agregada al álbum'
-                : card.status === 'discarded'
-                  ? 'Descartada'
-                  : null
+              const statusLabel = (() => {
+                if (card.status === 'added') return 'Agregada al álbum'
+                if (card.status === 'duplicate') return 'Duplicada (descartada automáticamente)'
+                if (card.status === 'discarded') return 'Descartada'
+                return null
+              })()
 
               return (
                 <div key={card.id} className="card bg-base-100 shadow-md border">
@@ -92,7 +91,15 @@ const ModalRevealCards = ({ open, tier, cards, onAssign, onClose }) => {
                       </p>
                     )}
                     {statusLabel && (
-                      <span className={`badge mt-2 ${card.status === 'added' ? 'badge-success' : 'badge-ghost'}`}>
+                      <span
+                        className={`badge mt-2 ${
+                          card.status === 'added'
+                            ? 'badge-success'
+                            : card.status === 'duplicate'
+                              ? 'badge-warning'
+                              : 'badge-ghost'
+                        }`}
+                      >
                         {statusLabel}
                       </span>
                     )}

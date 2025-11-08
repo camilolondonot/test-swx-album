@@ -70,17 +70,17 @@ const GetCard = () => {
       <h1 className='text-2xl font-bold'>Cartas</h1>
       <Container>
         <GetCardOption />
+        {loading && <Loading />}
+        {error && (
+          <p className="text-error">Ocurrió un problema al cargar la información.</p>
+        )}
+        {!loading && !error && (
+          <p className="text-sm text-base-content/70">
+            Total de cartas disponibles: {completedData.length}
+          </p>
+        )}
       </Container>
       
-      {loading && <Loading />}
-      {error && (
-        <p className="text-error">Ocurrió un problema al cargar la información.</p>
-      )}
-      {!loading && !error && (
-        <p className="text-sm text-base-content/70">
-          Total de cartas disponibles: {completedData.length}
-        </p>
-      )}
 
       <Container >
         <h2 className='text-7xl font-bold'>Personajes</h2>

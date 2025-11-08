@@ -14,6 +14,7 @@ const GetCardOption = () => {
 
   const packs = useStoreData((state) => state.packs)
   const assignCardStatus = useStoreData((state) => state.assignCardStatus)
+  const albumUser = useStoreData((state) => state.albumUser)
 
   const modalContent = useMemo(() => {
     return PACK_TIERS.reduce((acc, tier) => {
@@ -93,6 +94,25 @@ const GetCardOption = () => {
     if (!isRevealOpen || !selectedTier) return []
     return packs[selectedTier]?.cards ?? []
   }, [isRevealOpen, selectedTier, packs])
+
+  useEffect(() => {
+    if (!isRevealOpen || !selectedTier) {
+      return
+    }
+
+    const cards = packs[selectedTier]?.cards ?? []
+    const albumKeys = new Set(
+      (albumUser ?? [])
+        .map((card) => card?.uniqueKey)
+        .filter(Boolean),
+    )
+
+    cards
+      .filter((card) => card.status === 'pending' && card.uniqueKey && albumKeys.has(card.uniqueKey))
+      .forEach((card) => {
+        assignCardStatus?.(selectedTier, card.id, 'duplicate')
+      })
+  }, [isRevealOpen, selectedTier, packs, albumUser, assignCardStatus])
 
   return (
     <>
