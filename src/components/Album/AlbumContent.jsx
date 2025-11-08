@@ -68,22 +68,41 @@ const AlbumContent = () => {
         }
       })
 
+      const collectedCount = slots.filter((slot) => slot.collected).length
+
       return {
         ...meta,
         type,
         slots,
+        collectedCount,
       }
     })
   }, [albumMap, completedData])
 
+  const totalCollected = sections.reduce((sum, section) => sum + section.collectedCount, 0)
+  const totalAlbum = sections.reduce((sum, section) => sum + section.total, 0)
+  const overallProgress = totalAlbum > 0 ? Math.round((totalCollected / totalAlbum) * 100) : 0
+
   return (
     <div className="space-y-12">
+      {albumUser.length === 0 && (
+        <div className="rounded-md border border-base-300 bg-base-100 px-4 py-3 text-sm text-base-content/70">
+          Aún no has agregado láminas a tu álbum. Abre un sobre y selecciona “Agregar al álbum” para empezar a completar tu colección.
+        </div>
+      )}
+
+      <div className="rounded-lg bg-base-100 p-4 shadow-sm">
+        <p className="text-sm text-base-content/70">
+          Progreso general: {totalCollected} de {totalAlbum} láminas ({overallProgress}%).
+        </p>
+      </div>
+
       {sections.map((section) => (
         <section key={section.type} className="space-y-4">
           <header className="flex flex-col gap-1">
             <h2 className="text-2xl font-bold">{section.title}</h2>
             <p className="text-sm text-base-content/70">
-              Láminas totales: {section.total}
+              {section.collectedCount} / {section.total} láminas recolectadas
             </p>
           </header>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

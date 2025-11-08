@@ -18,6 +18,7 @@ const initialState = {
   packs: createEmptyPacks(),
   albumUser: [],
   cooldownEndsAt: null,
+  catalogLoaded: false,
 }
 
 const pickRandomConfiguration = () => {
@@ -59,6 +60,7 @@ export const useStoreData = create(persist(
       set({
         completedData,
         packs: createEmptyPacks(),
+        catalogLoaded: true,
       })
     },
 

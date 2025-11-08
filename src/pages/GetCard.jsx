@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useStoreData } from '@/store/storeData'
 import { getAllData } from '@/Services/Api'
 import { Button, Carousel, Loading, Container } from '@/components/ui'
@@ -14,119 +14,143 @@ const GetCard = () => {
   const [error, setError] = useState(null)
 
   const completedData = useStoreData((state) => state.completedData)
+  const setCompletedData = useStoreData((state) => state.setCompletedData)
+  const catalogLoaded = useStoreData((state) => state.catalogLoaded)
+
+  const fetchCatalog = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
+        getAllData('people'),
+        getAllData('films'),
+        getAllData('starships'),
+      ])
+
+      setPeopleData(peopleResponse)
+      setFilmsData(filmsResponse)
+      setStarshipsData(starshipsResponse)
+
+      setCompletedData([
+        ...(peopleResponse?.results?.map((item) => ({
+          type: 'people',
+          data: item,
+        })) ?? []),
+        ...(filmsResponse?.results?.map((item) => ({
+          type: 'film',
+          data: item,
+        })) ?? []),
+        ...(starshipsResponse?.results?.map((item) => ({
+          type: 'starship',
+          data: item,
+        })) ?? []),
+      ])
+    } catch (err) {
+      console.error('Error al obtener datos del catálogo', err)
+      setError(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [setCompletedData])
 
   useEffect(() => {
-    let cancelled = false
+    if (catalogLoaded) return
+    fetchCatalog()
+  }, [catalogLoaded, fetchCatalog])
 
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
-          getAllData('people'),
-          getAllData('films'),
-          getAllData('starships'),
-        ])
+  const hasCatalog = catalogLoaded && Array.isArray(completedData) && completedData.length > 0
 
-        if (cancelled) return
-
-        setPeopleData(peopleResponse)
-        setFilmsData(filmsResponse)
-        setStarshipsData(starshipsResponse)
-
-        useStoreData.getState().setCompletedData([
-          ...(peopleResponse?.results?.map((item) => ({
-            type: 'people',
-            data: item,
-          })) ?? []),
-          ...(filmsResponse?.results?.map((item) => ({
-            type: 'film',
-            data: item,
-          })) ?? []),
-          ...(starshipsResponse?.results?.map((item) => ({
-            type: 'starship',
-            data: item,
-          })) ?? []),
-        ])
-      } catch (err) {
-        if (cancelled) return
-        setError(err)
-        useStoreData.getState().setCompletedData([])
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    }
-
-    fetchData()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const sections = useMemo(() => ([
+    {
+      title: 'Personajes',
+      data: peopleData?.results ?? [],
+      CardComponent: CardPeople,
+      keyAccessor: (item) => item.url ?? item.name,
+    },
+    {
+      title: 'Películas',
+      data: filmsData?.results ?? [],
+      CardComponent: CardFilm,
+      keyAccessor: (item) => item.url ?? item.title,
+    },
+    {
+      title: 'Naves',
+      data: starshipsData?.results ?? [],
+      CardComponent: CardStarships,
+      keyAccessor: (item) => item.url ?? item.name,
+    },
+  ]), [peopleData, filmsData, starshipsData])
 
   return (
-    <section>
-      <h1 className='text-2xl font-bold'>Cartas</h1>
+    <section className="space-y-8">
+      <header className="space-y-3">
+        <h1 className="text-3xl font-bold">Obtener láminas</h1>
+        <p className="text-base text-base-content/70">
+          Abre sobres para descubrir láminas nuevas, agrégalas a tu álbum o descarta las que estén repetidas.
+        </p>
+      </header>
+
       <Container>
         <GetCardOption />
-        {loading && <Loading />}
-        {error && (
-          <p className="text-error">Ocurrió un problema al cargar la información.</p>
+      </Container>
+
+      <Container>
+        {loading && (
+          <div className="py-6">
+            <Loading />
+          </div>
         )}
-        {!loading && !error && (
+
+        {error && (
+          <div className="rounded-md border border-error/30 bg-error/10 px-4 py-3 text-sm text-error-content">
+            <p>Ocurrió un problema al cargar el catálogo de láminas.</p>
+            <Button className="mt-3" variant="secondary" onClick={fetchCatalog}>
+              Reintentar
+            </Button>
+          </div>
+        )}
+
+        {hasCatalog && !loading && !error && (
           <p className="text-sm text-base-content/70">
-            Total de cartas disponibles: {completedData.length}
+            Catálogo disponible: {completedData.length} láminas listas para aparecer en tus sobres.
           </p>
         )}
       </Container>
-      
 
-      <Container >
-        <h2 className='text-7xl font-bold'>Personajes</h2>
-      </Container>
+      {hasCatalog && sections.map((section) => {
+        if (section.data.length === 0) {
+          return null
+        }
 
-      <div className="py-6">
-        <Carousel slidesToShow={Math.min(3, peopleData?.results?.length)}>
-        {peopleData?.results?.map((item) => (
-          <div key={item.url ?? item.name} className="flex justify-center">
-            <CardPeople data={item} />
-          </div>
-          ))}
-        </Carousel>
-      </div>
+        const slidesToShow = Math.min(3, section.data.length)
 
-      <Container >
-        <h2 className='text-7xl font-bold'>Peliculas</h2>
-      </Container>
-
-      <div className="py-6">
-        <Carousel slidesToShow={Math.min(3, filmsData?.results?.length)}>
-        {filmsData?.results?.map((item) => (
-          <div key={item.url ?? item.title} className="flex justify-center">
-            <CardFilm data={item} />
-          </div>
-          ))}
-        </Carousel>
-      </div>
-
-      <Container >
-        <h2 className='text-7xl font-bold'>Naves</h2>
-      </Container>
-
-      <div className="py-6">
-        <Carousel slidesToShow={Math.min(3, starshipsData?.results?.length)}>
-          {starshipsData?.results?.map((item) => (
-            <div key={item.url ?? item.name} className="flex justify-center">
-              <CardStarships data={item} />
+        return (
+          <div key={section.title} className="space-y-4">
+            <Container>
+              <h2 className="text-2xl font-semibold">{section.title}</h2>
+            </Container>
+            <div className="py-6">
+              <Carousel slidesToShow={slidesToShow}>
+                {section.data.map((item) => {
+                  const key = section.keyAccessor(item)
+                  const CardComponent = section.CardComponent
+                  return (
+                    <div key={key} className="flex justify-center">
+                      <CardComponent data={item} />
+                    </div>
+                  )
+                })}
+              </Carousel>
             </div>
-          ))}
-        </Carousel>
-      </div>
+          </div>
+        )
+      })}
 
-
-      <Button type="link" to="/album">Album</Button>
-      <Button type="link" to="/">Home</Button>
+      {!loading && !error && !hasCatalog && (
+        <div className="rounded-md border border-base-300 bg-base-100 px-4 py-6 text-center text-sm text-base-content/70">
+          Estamos preparando el catálogo de láminas. Reintenta en unos segundos si el listado no aparece automáticamente.
+        </div>
+      )}
     </section>
   )
 }
