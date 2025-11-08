@@ -15,8 +15,6 @@ const GetCardOption = () => {
   const packs = useStoreData((state) => state.packs)
   const assignCardStatus = useStoreData((state) => state.assignCardStatus)
 
-  console.log('packs', packs)
-
   const modalContent = useMemo(() => {
     return PACK_TIERS.reduce((acc, tier) => {
       acc[tier] = {

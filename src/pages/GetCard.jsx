@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useStoreData } from '@/store/storeData'
-import { getData } from '@/Services/Api'
+import { getAllData } from '@/Services/Api'
 import { Button, Carousel, Loading, Container } from '@/components/ui'
 import { CardPeople, CardFilm, CardStarships } from '@/components/Cards'
 
@@ -22,9 +22,9 @@ const GetCard = () => {
       setLoading(true)
       try {
         const [peopleResponse, filmsResponse, starshipsResponse] = await Promise.all([
-          getData('people'),
-          getData('films'),
-          getData('starships'),
+          getAllData('people'),
+          getAllData('films'),
+          getAllData('starships'),
         ])
 
         if (cancelled) return
@@ -64,10 +64,6 @@ const GetCard = () => {
       cancelled = true
     }
   }, [])
-
-  useEffect(() => {
-    console.log('completedData', completedData)
-  }, [completedData])
 
   return (
     <section>
