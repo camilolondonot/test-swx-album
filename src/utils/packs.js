@@ -1,3 +1,5 @@
+import { getResourceId, getResourceUniqueKey } from './cards'
+
 const TYPE_LABELS = {
   people: { single: 'personaje', plural: 'personajes' },
   film: { single: 'película', plural: 'películas' },
@@ -43,21 +45,19 @@ const buildCardId = (tier, card) => {
   return `${tier}-${card?.type ?? 'unknown'}-${base}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-const buildCardKey = (card) =>
-  card?.data?.url ??
-  card?.data?.name ??
-  card?.data?.title ??
-  `${card?.type ?? 'unknown'}-${JSON.stringify(card?.data ?? {})}`
-
 const normalizeCardsForTier = (tier, cards) =>
-  cards.map((card) => ({
-    id: buildCardId(tier, card),
-    uniqueKey: buildCardKey(card),
-    tier,
-    type: card.type,
-    data: card.data,
-    status: 'pending',
-  }))
+  cards.map((card) => {
+    const resourceId = getResourceId(card.type, card.data)
+    return {
+      id: buildCardId(tier, card),
+      uniqueKey: getResourceUniqueKey(card.type, card.data),
+      resourceId,
+      tier,
+      type: card.type,
+      data: card.data,
+      status: 'pending',
+    }
+  })
 
 const describeCards = (cards) => {
   if (!cards.length) {
